@@ -4,8 +4,13 @@ setwd("/Users/colinleverger/Documents/Experiments/kaggle/speed-dating-experiment
 library(dplyr)
 library(reshape2)
 library(ggplot2)      # Data visualization
+library(RColorBrewer) # Colors on plots
 library(readr)        # CSV file I/O, e.g. the read_csv function
 library(dataQualityR) # Generate the DQR
+
+#### Color palettes for plots
+cbPalette  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 #### Read data ####
 missing.types <- c("NA", "")
@@ -96,9 +101,40 @@ dqr.cont.aft <- read.csv("DQR_cont-after.csv")
 dqr.cat.aft  <- read.csv("DQR_cat-after.csv")
 
 #### Analyse the data ####
-gender.rep.over.waves <- subset(df, !duplicated(df[,1]))  %>%
+### Gender analysis ###
+gender.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
   group_by(wave, gender) %>%
-  summarise(n = n())
+  summarise(n = n()) %>%
+  melt(id.vars = c("gender", "wave"))
+
+# Plot gender repartition in waves
+ggplot(gender.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Wave") + ylab("Population") + 
+  scale_fill_manual(values = cbPalette)
+
+### Age analysis ###
+age.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
+  filter(!is.na(age)) %>%
+  group_by(wave, gender) %>%
+  summarise(m = mean(age)) %>%
+  melt(id.vars = c("gender", "wave"))
+
+# Plot age repartition in waves
+ggplot(age.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Wave") + ylab("Mean age") +
+  scale_fill_manual(values = cbPalette)
+
+### Match analysis ###
+barplot(
+  table(df$match),
+  main = "Matches proportion",
+  col = "black"
+)
+
 
 
   
