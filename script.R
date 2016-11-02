@@ -89,6 +89,10 @@ ordered(unique(df$zipcode))
 # View(df[df$wave >5 & df$wave < 10,])
 # View(df[df$wave == 3,])
 
+### Change Male and Female attributes ###
+df[df$gender == 0,]$gender <- "F"
+df[df$gender == 1,]$gender <- "M"
+
 #### Generate DQR, after feature engineering ####
 checkDataQuality(
   df,
@@ -128,12 +132,38 @@ ggplot(age.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
   xlab("Wave") + ylab("Mean age") +
   scale_fill_manual(values = cbPalette)
 
-### Match analysis ###
+# What are the extremums?
+print(paste0("Minimum age in all the dataset is: ", min(df[!is.na(df$age),]$age)))
+print(paste0("Max age in all the dataset is: ", max(df[!is.na(df$age),]$age)))
+print(paste0("Mean age in all the dataset is: ", mean(df[!is.na(df$age),]$age)))
+
+### Matches analysis ###
+# Dummie analysis on Matches
 barplot(
   table(df$match),
   main = "Matches proportion",
   col = "black"
 )
+
+## Match by gender analysis ##
+match.by.gender <- df %>%
+  group_by(gender) %>%
+  summarise(
+    NbMatches = sum(match == 1),
+    NbFails = sum(match == 0)
+  ) %>% 
+  melt(id.vars = "gender")
+
+# Plot for both men and women
+ggplot(match.by.gender, aes(x = variable, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Gender") + ylab("Matches")
+
+## Isolate matches
+matches <- df[df$match == 1,]
+
+## What 
 
 
 
