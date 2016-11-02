@@ -149,22 +149,71 @@ barplot(
 match.by.gender <- df %>%
   group_by(gender) %>%
   summarise(
-    NbMatches = sum(match == 1),
-    NbFails = sum(match == 0)
+    nb_matches = sum(match == 1),
+    nb_fails = sum(match == 0)
   ) %>% 
   melt(id.vars = "gender")
 
-# Plot for both men and women
+# Plot matches for both men and women
 ggplot(match.by.gender, aes(x = variable, y = value, fill = factor(gender))) +
   geom_bar(stat = "identity", position = "dodge") +
   scale_fill_discrete(name = "Gender") +
-  xlab("Gender") + ylab("Matches")
+  xlab("Result") + ylab("Count")
 
-## Isolate matches
+## Match by wave analysis ##
+match.by.waves <- df[df$match == 1,] %>%
+  group_by(wave) %>%
+  summarise(
+    nb_matches = sum(match == 1)
+  )
+
+# Plot matches for waves: what was the best wave to be?
+ggplot(match.by.waves, aes(x = wave, y = nb_matches)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Wave number") + ylab("Matches")
+
+## Isolate matches ##
 matches <- df[df$match == 1,]
+#TODO
+
+### Work and studies analysis ###
+## Field analysis ##
+# Create field work codes
+fields.cd <- c(
+  "Law",
+  "Math",
+  "Social Science, Psychologist" ,
+  "Medical Science, Pharmaceuticals, and Bio Tech",
+  "Engineering",
+  "English/Creative Writing/ Journalism",
+  "History/Religion/Philosophy",
+  "Business/Econ/Finance",
+  "Education, Academia",
+  "Biological Sciences/Chemistry/Physics",
+  "Social Work" ,
+  "Undergrad/undecided" ,
+  "Political Science/International Affairs" ,
+  "Film",
+  "Fine Arts/Arts Administration",
+  "Languages",
+  "Architecture",
+  "Other"
+)
+
+# Find number of men/women on each fields
+fields <- df[!is.na(df$field_cd),] %>%
+  group_by(gender, field_cd) %>%
+  summarise(
+    myN = n()
+  )
+
+# Plot result
+ggplot(fields, aes(x = field_cd, y = myN, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Field Coded") + ylab("Count") +
+  scale_x_continuous(labels = fields.cd, breaks = c(1:18)) +
+  coord_flip()
 
 ## What 
 
-
-
-  
