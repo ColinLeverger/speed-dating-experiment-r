@@ -1,0 +1,478 @@
+---
+title: 'Exploring Speed Dating'
+author: 'Colin LEVERGER'
+date: '22 Oct 2016'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: yeti
+    highlight: tango
+---
+# Introduction
+
+I am going to explore a Speed Dating dataset provided by Kaggle, which can be found at the following URL: https://www.kaggle.com/annavictoria/speed-dating-experiment/.
+
+```{r, include=FALSE}
+setwd("/Users/colinleverger/Documents/Experiments/kaggle/speed-dating-experiment")
+```
+
+# Initialisations
+## Packages
+
+Let's first load a few libraries...
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# Load libraries & packages
+library(dplyr)        # Data manipulation
+library(reshape2)     # Data reshaping for ggplot
+library(ggplot2)      # Data visualization
+library(RColorBrewer) # Colors on plots
+library(readr)        # CSV file I/O, e.g. the read_csv function
+library(dataQualityR) # DQR generation
+```
+
+## Color palettes for plots
+
+This is optional, but if we decide to change the color of the `ggplot` afterwards, it could be useful.
+
+```{r}
+cbPalette  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+
+## Read the data
+```{r, results="hide", warning=FALSE, message=FALSE}
+missing.types <- c("NA", "")
+df <- read.csv("input/Speed Dating Data.csv", na.strings = missing.types, stringsAsFactors = F)
+# "income", "tuition" and "mn_sat" features should be read as numerical
+df$income  <- as.numeric(gsub(",", "", df$income))
+df$tuition <- as.numeric(gsub(",", "", df$tuition))
+df$mn_sat  <- as.numeric(gsub(",", "", df$mn_sat))
+```
+
+# Investigations & cleaning of the data
+
+## Generate the Data Quality Report, before the feature engineering
+
+The Data Quality Report (DQR) is a good way to have an overall view of the quality of your dataset. Which feature has the most missing values? How many unique values are present? Etc. It is a very good help to understand and clean the data.
+
+```{r}
+checkDataQuality(
+  df,
+  out.file.num = "DQR_cont-before.csv",
+  out.file.cat = "DQR_cat-before.csv"
+)
+
+# Read the DQR on the disk
+dqr.cont.bef <- read.csv("DQR_cont-before.csv")
+dqr.cat.bef  <- read.csv("DQR_cat-before.csv")
+
+# Classify features in function of their missingness for better analysis
+feat.cont.missing20_100 <- dqr.cont.bef[dqr.cont.bef$missing.percent > 20,]
+feat.cont.missing20     <- dqr.cont.bef[dqr.cont.bef$missing.percent <= 20 & dqr.cont.bef$missing.percent > 0,]
+```
+
+## Why is there so much 79 missing values? 
+
+If we take a closer look at the data, we notice that there are a lot of features which have exactly 79 missing values.
+
+```{r}
+head(dqr.cont.bef[dqr.cont.bef$missing == 79, c(1,2,3)], 10)
+```
+
+The question is: is there a pattern? Can we impute, how to clean this mess?
+
+```{r}
+val1 <- feat.cont.missing20[feat.cont.missing20$missing == 79,]$X
+head(df[is.na(df$imprelig), c(1:10)])
+```
+
+It appears that nothing very interesting can be deducted from this.
+
+## Investigate with missing age_o/race_o
+
+In the same approach, there is a lot of missing values for `age_o` and `race_o` features.
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+missing.age_o.pid <- unique(df[is.na(df$age_o),]$pid)
+missing.race_o.pid <- unique(df[is.na(df$race_o),]$pid)
+head(subset(df, iid %in% missing.age_o.pid)[, c(1:10)])
+# Nothing very interesting here neither...
+```
+
+## Deal with missing id
+
+According to our DQR, there is one missing `id` in our dataset. It should be fairly easy to deduct the good value. Let's find and replace it.
+
+```{r}
+# Find the iid of the only missing id
+iid <- df[is.na(df$id),]$iid
+# Assign this iid' id to the missing iid..
+df[is.na(df$id),]$id <- head(df[df$iid == iid,]$id, 1)
+```
+
+_Note to myself: it is not useful to make the process generic, the data won't change anyway..._
+ 
+## Deal with missing pid
+
+There is 10 missing `pid` (partner’s iid number) in the dataset. Since there is no `iid` missing, we could probably input this last easily. We could see if the `partner` value is present, because it will lead us within the wave to this missing `pid`.
+
+```{r}
+# Show the missing pid
+df[is.na(df$pid), c(1,2,11,12)]
+# Save the partner number for the wave
+partner.pid <- unique(df[is.na(df$pid),]$partner)
+# Save the wave number
+wave.pid <- unique(df[is.na(df$pid),]$wave)
+# Show the iid we are looking for
+unique(df[df$wave == wave.pid & df$id == partner.pid,]$iid)
+df[is.na(df$pid),]$pid <- 128
+```
+
+## Work on field feature
+```{r}
+# Plot raw field
+df$field <- tolower(df$field)
+barplot(
+  table(df$field),
+  main = "Careers"
+)
+
+# How many unique field do we have?
+length(unique(df$field))
+
+# Show coded field
+ordered(unique(df$field_cd))
+```
+
+## Work on career feature
+```{r}
+# Plot raw career
+df$career <- tolower(df$career)
+barplot(
+  table(df$career),
+  main = "Careers"
+)
+# How many unique carrer do we have?
+length(unique(df$career))
+
+# Show coded career
+ordered(unique(df$career_c))
+```
+
+## Work on zip codes
+```{r}
+# Assign NA to all the zip codes equals to 0
+df[df$zipcode == 0 & !is.na(df$zipcode),]$zipcode <- NA
+```
+
+## Standardise wave > 5 and < 10
+
+It is said on the word doc linked to the data that the waves 6 to 9 are different because people were asked to note their preferences from 1 to 10 rather than allocating a hundred points on features.
+
+```{r}
+# Show waves 6 to 9
+head(df[df$wave > 5 & df$wave < 10, c(1,16:20)])
+# Show wave 3 to compare
+head(df[df$wave == 3, c(1,16:20)])
+```
+
+However, we see above that the data seems to already be standardised - no work for us here!
+
+## Change Male and Female attributes
+
+To enhance comprehension, I have chosen to display `W` instead if `0` for women, and `M` instead of `1` for males.
+
+```{r}
+df[df$gender == 0,]$gender <- "W"
+df[df$gender == 1,]$gender <- "M"
+```
+
+## Generate DQR, after feature engineering
+```{r}
+checkDataQuality(
+  df,
+  out.file.num = "DQR_cont-after.csv",
+  out.file.cat = "DQR_cat-after.csv"
+)
+```
+
+## Read DQR on the disk & check that everything is fine
+```{r, results="hide"}
+dqr.cont.aft <- read.csv("DQR_cont-after.csv")
+dqr.cat.aft  <- read.csv("DQR_cat-after.csv")
+
+dqr.cont.aft
+dqr.cat.aft
+```
+
+# Analyse the data
+## Gender analysis
+```{r, warning=FALSE, message=FALSE}
+gender.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
+  group_by(wave, gender) %>%
+  summarise(my.n = n()) %>%
+  melt(id.vars = c("gender", "wave"))
+
+# Plot gender repartition in waves
+ggplot(gender.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Wave") + ylab("Population") + 
+  scale_fill_manual(values = cbPalette)
+```
+
+## Age analysis
+```{r, warning=FALSE, message=FALSE}
+age.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
+  filter(!is.na(age)) %>%
+  group_by(wave, gender) %>%
+  summarise(my.m = mean(age)) %>%
+  melt(id.vars = c("gender", "wave"))
+
+# Plot age repartition in waves
+ggplot(age.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Wave") + ylab("Mean age") +
+  scale_fill_manual(values = cbPalette)
+
+# What are the extremums?
+print(paste0("Minimum age in all the dataset is: ", min(df[!is.na(df$age),]$age)))
+print(paste0("Max age in all the dataset is: ", max(df[!is.na(df$age),]$age)))
+print(paste0("Mean age in all the dataset is: ", mean(df[!is.na(df$age),]$age)))
+```
+
+## Work and studies analysis
+```{r}
+# Create study field codes
+fields.cd <- c(
+  "Law",
+  "Math",
+  "Social Science, Psychologist" ,
+  "Medical Science, Pharmaceuticals, and Bio Tech",
+  "Engineering",
+  "English/Creative Writing/ Journalism",
+  "History/Religion/Philosophy",
+  "Business/Econ/Finance",
+  "Education, Academia",
+  "Biological Sciences/Chemistry/Physics",
+  "Social Work" ,
+  "Undergrad/undecided" ,
+  "Political Science/International Affairs" ,
+  "Film",
+  "Fine Arts/Arts Administration",
+  "Languages",
+  "Architecture",
+  "Other"
+)
+
+# Create career codes
+career.cd <- c(
+  "Lawyer",
+  "Academic/Research", 
+  "Psychologist", 
+  "Doctor/Medicine",
+  "Engineer", 
+  "Creative Arts/Entertainment",
+  "BankingBusiness/CEO/Admin",
+  "Real Estate",
+  "International/Humanitarian Affairs",
+  "Undecided" ,
+  "Social Work",
+  "Speech Pathology",
+  "Politics",
+  "Pro sports/Athletics",
+  "Other",
+  "Journalism",
+  "Architecture"
+)
+
+# Find number of men/women on each study field
+fields <- df[!is.na(df$field_cd),] %>%
+  group_by(gender, field_cd) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Find number of men/women on each career
+careers <- df[!is.na(df$career_c),] %>%
+  group_by(gender, career_c) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot study fields repartition
+ggplot(fields, aes(x = field_cd, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Field") + ylab("Count") +
+  scale_x_continuous(labels = fields.cd, breaks = 1:18) +
+  coord_flip()
+
+# Plot careers repartition
+ggplot(careers, aes(x = career_c, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Career") + ylab("Count") +
+  scale_x_continuous(labels = career.cd, breaks = 1:17) +
+  coord_flip()
+```
+
+## Race analysis
+```{r}
+# Create race code
+race.c <- c(
+  "Black/African American",
+  "European/Caucasian-American",
+  "Latino/Hispanic American",
+  "Asian/Pacific Islander/Asian-American",
+  "Native American",
+  "Other"
+)
+
+races <- df[!is.na(df$race),] %>%
+  group_by(gender, race) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot race repartition
+ggplot(races, aes(x = race, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Race") + ylab("Count") +
+  scale_x_continuous(labels = race.c, breaks = 1:6) +
+  coord_flip()
+```
+
+## Goal analysis
+```{r}
+# Create goal code
+goal.c <- c(
+  "Seemed like a fun night out",
+  "To meet new people",
+  "To get a date",
+  "Looking for a serious relationship",
+  "To say I did it",
+  "Other"
+)
+
+goals <- df[!is.na(df$goal),] %>%
+  group_by(gender, goal) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot goals repartition
+ggplot(goals, aes(x = goal, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Goal") + ylab("Count") +
+  scale_x_continuous(labels = goal.c, breaks = 1:6) +
+  coord_flip()
+```
+
+## Date & go out analysis
+```{r}
+# Create date & go out code
+date.c <- c(
+  "Several times a week",
+  "Twice a week",
+  "Once a week",
+  "Twice a month",
+  "Once a month",
+  "Several times a year",
+  "Almost never"
+)
+
+dates <- df[!is.na(df$date),] %>%
+  group_by(gender, date) %>%
+  summarise(
+    my.n = n()
+  )
+
+go.outs <- df[!is.na(df$go_out),] %>%
+  group_by(gender, go_out) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot dates repartition
+ggplot(dates, aes(x = date, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Date") + ylab("Count") +
+  scale_x_continuous(labels = date.c, breaks = 1:7) +
+  coord_flip()
+
+# Plot go out repartition
+ggplot(go.outs, aes(x = go_out, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Go out") + ylab("Count") +
+  scale_x_continuous(labels = date.c, breaks = 1:7) +
+  coord_flip()
+```
+
+## Matches analysis
+```{r}
+# Dummie analysis on Matches
+barplot(
+  table(df$match),
+  main = "Matches proportion",
+  col = "black"
+)
+```
+
+### Match by gender analysis
+```{r}
+match.by.gender <- df %>%
+  group_by(gender) %>%
+  summarise(
+    nb_matches = sum(match == 1),
+    nb_fails = sum(match == 0)
+  ) %>% 
+  melt(id.vars = "gender")
+
+# Plot matches for both men and women
+ggplot(match.by.gender, aes(x = variable, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Result") + ylab("Count")
+```
+
+### Match by wave analysis
+```{r}
+match.by.waves <- df[df$match == 1,] %>%
+  group_by(wave) %>%
+  summarise(
+    nb_matches = sum(match == 1)
+  )
+
+# Plot matches for waves: what was the best wave to be?
+ggplot(match.by.waves, aes(x = wave, y = nb_matches)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Wave number") + ylab("Matches")
+```
+
+## Look for best attributes to have for a man
+```{r}
+# TODO
+```
+
+# Create data to feed Gephi
+```{r}
+# Isolate iid (1) -> pid (12)
+gephi <- df[,c(1, 12)]
+# Rename columns to match Gephi's prerequisites
+names(gephi)[1] <- paste("Source")
+names(gephi)[2] <- paste("Target")
+# Convert Target into integer (to avoid having 10.0, 11.0...)
+# We don't want to have ".0" to have a good analysis with Gephi
+gephi$Target <- as.integer(gephi$Target)
+# Write on disk
+write_csv(gephi, "gephi.csv")
+```

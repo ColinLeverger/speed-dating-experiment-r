@@ -1,5 +1,5 @@
 "","n.non.miss","n.miss","n.miss.percent","n.unique","cat_1","freq_1","cat_2","freq_2","cat_3","freq_3","cat_4","freq_4","cat_5","freq_5","cat_6","freq_6","cat_7","freq_7","cat_8","freq_8","cat_9","freq_9","cat_10","freq_10"
-"gender",8378,0,0,2,"M",4194,"F",4184,"","","","","","","","","","","","","","","",""
+"gender",8378,0,0,2,"M",4194,"W",4184,"","","","","","","","","","","","","","","",""
 "field",8315,63,0.75,220,"business",631,"law",604,"mba","468","social work","414","international affairs","287","electrical engineering","223","psychology","177","sociology","140","engineering","127","education","123"
 "undergra",4914,3464,41.35,242,"UC Berkeley",107,"Harvard",104,"Columbia","95","Yale","86","NYU","78","Brown","66","UCLA","66","Cornell University","64","Smith College","59","Tufts University","47"
 "from",8299,79,0.94,270,"New York",522,"New Jersey",365,"California","301","China","139","Italy","132","New York City","130","Boston","123","Texas","120","NYC","109","India","107"
