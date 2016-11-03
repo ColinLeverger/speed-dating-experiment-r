@@ -288,14 +288,14 @@ df$mn_sat  &lt;-<span class="st"> </span><span class="kw">as.numeric</span>(<spa
 <p>The Data Quality Report (DQR) is a good way to have an overall view of the quality of your dataset. Which feature has the most missing values? How many unique values are present? Etc. It is a very good help to understand and clean the data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">checkDataQuality</span>(
   df,
-  <span class="dt">out.file.num =</span> <span class="st">&quot;DQR_cont-before.csv&quot;</span>,
-  <span class="dt">out.file.cat =</span> <span class="st">&quot;DQR_cat-before.csv&quot;</span>
+  <span class="dt">out.file.num =</span> <span class="st">&quot;dqr/DQR_cont-before.csv&quot;</span>,
+  <span class="dt">out.file.cat =</span> <span class="st">&quot;dqr/DQR_cat-before.csv&quot;</span>
 )</code></pre></div>
-<pre><code>## Check for numeric variables completed // Results saved to disk // Time difference of 0.9734478 secs
-## Check for categorical variables completed // Results saved to disk // Time difference of 0.04784918 secs</code></pre>
+<pre><code>## Check for numeric variables completed // Results saved to disk // Time difference of 0.8498309 secs
+## Check for categorical variables completed // Results saved to disk // Time difference of 0.04991698 secs</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Read the DQR on the disk</span>
-dqr.cont.bef &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;DQR_cont-before.csv&quot;</span>)
-dqr.cat.bef  &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;DQR_cat-before.csv&quot;</span>)
+dqr.cont.bef &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;dqr/DQR_cont-before.csv&quot;</span>)
+dqr.cat.bef  &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;dqr/DQR_cat-before.csv&quot;</span>)
 
 <span class="co"># Classify features in function of their missingness for better analysis</span>
 feat.cont.missing20_100 &lt;-<span class="st"> </span>dqr.cont.bef[dqr.cont.bef$missing.percent &gt;<span class="st"> </span><span class="dv">20</span>,]
@@ -444,16 +444,16 @@ df[df$gender ==<span class="st"> </span><span class="dv">1</span>,]$gender &lt;-
 <h2><span class="header-section-number">3.11</span> Generate DQR, after feature engineering</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">checkDataQuality</span>(
   df,
-  <span class="dt">out.file.num =</span> <span class="st">&quot;DQR_cont-after.csv&quot;</span>,
-  <span class="dt">out.file.cat =</span> <span class="st">&quot;DQR_cat-after.csv&quot;</span>
+  <span class="dt">out.file.num =</span> <span class="st">&quot;dqr/DQR_cont-after.csv&quot;</span>,
+  <span class="dt">out.file.cat =</span> <span class="st">&quot;dqr/DQR_cat-after.csv&quot;</span>
 )</code></pre></div>
-<pre><code>## Check for numeric variables completed // Results saved to disk // Time difference of 0.842531 secs
-## Check for categorical variables completed // Results saved to disk // Time difference of 0.051054 secs</code></pre>
+<pre><code>## Check for numeric variables completed // Results saved to disk // Time difference of 0.805753 secs
+## Check for categorical variables completed // Results saved to disk // Time difference of 0.05776215 secs</code></pre>
 </div>
 <div id="read-dqr-on-the-disk-check-that-everything-is-fine" class="section level2">
 <h2><span class="header-section-number">3.12</span> Read DQR on the disk &amp; check that everything is fine</h2>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dqr.cont.aft &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;DQR_cont-after.csv&quot;</span>)
-dqr.cat.aft  &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;DQR_cat-after.csv&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dqr.cont.aft &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;dqr/DQR_cont-after.csv&quot;</span>)
+dqr.cat.aft  &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;dqr/DQR_cat-after.csv&quot;</span>)
 
 dqr.cont.aft
 dqr.cat.aft</code></pre></div>

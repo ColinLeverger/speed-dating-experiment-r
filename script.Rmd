@@ -61,13 +61,13 @@ The Data Quality Report (DQR) is a good way to have an overall view of the quali
 ```{r}
 checkDataQuality(
   df,
-  out.file.num = "DQR_cont-before.csv",
-  out.file.cat = "DQR_cat-before.csv"
+  out.file.num = "dqr/DQR_cont-before.csv",
+  out.file.cat = "dqr/DQR_cat-before.csv"
 )
 
 # Read the DQR on the disk
-dqr.cont.bef <- read.csv("DQR_cont-before.csv")
-dqr.cat.bef  <- read.csv("DQR_cat-before.csv")
+dqr.cont.bef <- read.csv("dqr/DQR_cont-before.csv")
+dqr.cat.bef  <- read.csv("dqr/DQR_cat-before.csv")
 
 # Classify features in function of their missingness for better analysis
 feat.cont.missing20_100 <- dqr.cont.bef[dqr.cont.bef$missing.percent > 20,]
@@ -194,15 +194,15 @@ df[df$gender == 1,]$gender <- "M"
 ```{r}
 checkDataQuality(
   df,
-  out.file.num = "DQR_cont-after.csv",
-  out.file.cat = "DQR_cat-after.csv"
+  out.file.num = "dqr/DQR_cont-after.csv",
+  out.file.cat = "dqr/DQR_cat-after.csv"
 )
 ```
 
 ## Read DQR on the disk & check that everything is fine
 ```{r, results="hide"}
-dqr.cont.aft <- read.csv("DQR_cont-after.csv")
-dqr.cat.aft  <- read.csv("DQR_cat-after.csv")
+dqr.cont.aft <- read.csv("dqr/DQR_cont-after.csv")
+dqr.cat.aft  <- read.csv("dqr/DQR_cat-after.csv")
 
 dqr.cont.aft
 dqr.cat.aft
