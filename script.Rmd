@@ -18,7 +18,10 @@ I am going to explore a Speed Dating dataset provided by Kaggle, which can be fo
 setwd("/Users/colinleverger/Documents/Experiments/kaggle/speed-dating-experiment")
 ```
 
+The dataset is provided with its key, which is a Word document you will need to quickly go through to understand properly my work.
+
 # Initialisations
+****
 ## Packages
 
 Let's first load a few libraries...
@@ -52,55 +55,57 @@ df$tuition <- as.numeric(gsub(",", "", df$tuition))
 df$mn_sat  <- as.numeric(gsub(",", "", df$mn_sat))
 ```
 
-# Investigations & cleaning of the data
+# Clean the data
+****
+In this part of the analysis, we will clean the dataset and work on variables to have a better exploration of the dataset. This procedure includes various checks, imputations, type changes...
 
 ## Generate the Data Quality Report, before the feature engineering
 
-The Data Quality Report (DQR) is a good way to have an overall view of the quality of your dataset. Which feature has the most missing values? How many unique values are present? Etc. It is a very good help to understand and clean the data.
+The Data Quality Report (DQR) is a good way to have an overall view of the quality of the dataset. Which feature has the most missing values? How many unique values are present for this or this feature? Etc. It is a very good help to understand and clean the data.
 
 ```{r}
 checkDataQuality(
   df,
-  out.file.num = "dqr/DQR_cont-before.csv",
-  out.file.cat = "dqr/DQR_cat-before.csv"
+  out.file.num = "dqr/DQR_cont.csv",
+  out.file.cat = "dqr/DQR_cat.csv"
 )
 
 # Read the DQR on the disk
-dqr.cont.bef <- read.csv("dqr/DQR_cont-before.csv")
-dqr.cat.bef  <- read.csv("dqr/DQR_cat-before.csv")
+dqr.cont <- read.csv("dqr/DQR_cont.csv")
+dqr.cat  <- read.csv("dqr/DQR_cat.csv")
 
 # Classify features in function of their missingness for better analysis
-feat.cont.missing20_100 <- dqr.cont.bef[dqr.cont.bef$missing.percent > 20,]
-feat.cont.missing20     <- dqr.cont.bef[dqr.cont.bef$missing.percent <= 20 & dqr.cont.bef$missing.percent > 0,]
+feat.cont.missing20_100 <- dqr.cont[dqr.cont$missing.percent > 20,]
+feat.cont.missing20     <- dqr.cont[dqr.cont$missing.percent <= 20 & dqr.cont$missing.percent > 0,]
+# View(feat.cont.missing20)
 ```
 
-## Why is there so much 79 missing values? 
+## Inputations with missing values
 
 If we take a closer look at the data, we notice that there are a lot of features which have exactly 79 missing values.
 
 ```{r}
-head(dqr.cont.bef[dqr.cont.bef$missing == 79, c(1,2,3)], 10)
+head(dqr.cont[dqr.cont$missing == 79, c(1,2,3)], 10)
 ```
 
-The question is: is there a pattern? Can we impute, how to clean this mess?
+The question is: is there a pattern? Can we impute, can we clean this mess?
 
 ```{r}
 val1 <- feat.cont.missing20[feat.cont.missing20$missing == 79,]$X
-head(df[is.na(df$imprelig), c(1:10)])
+sample_n(df[is.na(df$imprelig), c(1:10)], 10)
 ```
 
-It appears that nothing very interesting can be deducted from this.
-
-## Investigate with missing age_o/race_o
+It appears that nothing very interesting can be deducted from this. Indeed, most of the missing values are preferences of the people considered. Impossible to inpute that!
 
 In the same approach, there is a lot of missing values for `age_o` and `race_o` features.
 
-```{r, results="hide", warning=FALSE, message=FALSE}
+```{r}
 missing.age_o.pid <- unique(df[is.na(df$age_o),]$pid)
 missing.race_o.pid <- unique(df[is.na(df$race_o),]$pid)
-head(subset(df, iid %in% missing.age_o.pid)[, c(1:10)])
-# Nothing very interesting here neither...
+sample_n(subset(df, iid %in% missing.age_o.pid)[, c(1:10)], 10)
 ```
+
+Nothing very interesting here neither.
 
 ## Deal with missing id
 
@@ -113,11 +118,13 @@ iid <- df[is.na(df$id),]$iid
 df[is.na(df$id),]$id <- head(df[df$iid == iid,]$id, 1)
 ```
 
-_Note to myself: it is not useful to make the process generic, the data won't change anyway..._
+_Note to myself: it is not useful to make the process generic, the data will not change anyway..._
  
 ## Deal with missing pid
 
-There is 10 missing `pid` (partner’s iid number) in the dataset. Since there is no `iid` missing, we could probably input this last easily. We could see if the `partner` value is present, because it will lead us within the wave to this missing `pid`.
+There is 10 missing `pid` (partner’s iid number) in the dataset. Since there is no `iid` missing, we could probably inpute quite easily. 
+
+Every person has an unique id in the entire dataset: `iid`. A person has also an unique identifier within the wave: `id`. Each person meet another person, and we have both the `iid` and the `id` of this person met (respectively mapped to `pid` and `partner`). Therefore, if there is 10 `pid` missing and no `partner` missing, the `partner` value will lead us within the wave to this missing `pid`.
 
 ```{r}
 # Show the missing pid
@@ -141,8 +148,14 @@ barplot(
 )
 
 # How many unique field do we have?
-length(unique(df$field))
+paste("There is", length(unique(df$field)), "different uncoded fields.")
+```
 
+We can not use this column to analyse the data. Indeed, all the values in this column were directly given by the users, and the latter may write anything, including nonsence values such as "I dont know".
+
+Instead, we will rely on the `field_coded` variable, which should have 18 levels.
+
+```{r}
 # Show coded field
 ordered(unique(df$field_cd))
 ```
@@ -156,19 +169,22 @@ barplot(
   main = "Careers"
 )
 # How many unique carrer do we have?
-length(unique(df$career))
+paste("There is", length(unique(df$career)), "different uncoded carreers.")
 
-# Show coded career
+# Show coded career (should have 17 levels)
 ordered(unique(df$career_c))
 ```
 
 ## Work on zip codes
+
+We see that there is a lot of `zipcode`s equals to 0, and these should be changed to NAs.
+
 ```{r}
 # Assign NA to all the zip codes equals to 0
 df[df$zipcode == 0 & !is.na(df$zipcode),]$zipcode <- NA
 ```
 
-## Standardise wave > 5 and < 10
+## Standardise waves
 
 It is said on the word doc linked to the data that the waves 6 to 9 are different because people were asked to note their preferences from 1 to 10 rather than allocating a hundred points on features.
 
@@ -183,32 +199,15 @@ However, we see above that the data seems to already be standardised - no work f
 
 ## Change Male and Female attributes
 
-To enhance comprehension, I have chosen to display `W` instead if `0` for women, and `M` instead of `1` for males.
+To enhance comprehension, I have chosen to display `W` instead if `0` for women, and `M` instead of `1` for males. This little modification will not have any negative impact on analysis, because we will not do any machine learning.
 
 ```{r}
 df[df$gender == 0,]$gender <- "W"
 df[df$gender == 1,]$gender <- "M"
 ```
 
-## Generate DQR, after feature engineering
-```{r}
-checkDataQuality(
-  df,
-  out.file.num = "dqr/DQR_cont-after.csv",
-  out.file.cat = "dqr/DQR_cat-after.csv"
-)
-```
-
-## Read DQR on the disk & check that everything is fine
-```{r, results="hide"}
-dqr.cont.aft <- read.csv("dqr/DQR_cont-after.csv")
-dqr.cat.aft  <- read.csv("dqr/DQR_cat-after.csv")
-
-dqr.cont.aft
-dqr.cat.aft
-```
-
 # Analyse the data
+****
 ## Gender analysis
 ```{r, warning=FALSE, message=FALSE}
 gender.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
@@ -333,6 +332,7 @@ race.c <- c(
   "Other"
 )
 
+# Find number of men/women for each race
 races <- df[!is.na(df$race),] %>%
   group_by(gender, race) %>%
   summarise(
@@ -360,6 +360,7 @@ goal.c <- c(
   "Other"
 )
 
+# Find number of men/women for each goal
 goals <- df[!is.na(df$goal),] %>%
   group_by(gender, goal) %>%
   summarise(
@@ -388,12 +389,14 @@ date.c <- c(
   "Almost never"
 )
 
+# Find date occurence for men/women
 dates <- df[!is.na(df$date),] %>%
   group_by(gender, date) %>%
   summarise(
     my.n = n()
   )
 
+# Find go out occurence for men/women
 go.outs <- df[!is.na(df$go_out),] %>%
   group_by(gender, go_out) %>%
   summarise(
@@ -464,6 +467,10 @@ ggplot(match.by.waves, aes(x = wave, y = nb_matches)) +
 ```
 
 # Create data to feed Gephi
+****
+
+In this dataset, there is connections between people. It fits well for a graph analysis, and we will thus use Gephy to do so.
+
 ```{r}
 # Isolate iid (1) -> pid (12)
 gephi <- df[,c(1, 12)]
