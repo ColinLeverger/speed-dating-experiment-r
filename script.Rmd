@@ -550,6 +550,10 @@ fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise +
 )
 
 # Get the importance of the features
+# We need to perform several operations on the fit$importance field, including:
+#  - take only the column we are interested in,
+#  - create a new column with the rowname on it,
+#  - rename the columns.
 importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
 colnames(importance.features) <- c("rowname", "value")
 
@@ -574,6 +578,35 @@ my.y <- as.factor(men[,c(match.col.index)])
 fit <- randomForest(x = my.x, y = my.y,
           importance=TRUE, 
           ntree=2000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  coord_flip()
+```
+
+#### How to get more than 5 matches?
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(999)
+
+# Get the iid of the person with more than 5 matches
+more.than.5 <- unique(men.grouped.iid[men.grouped.iid$sum.match > 5,]$iid)
+
+# Feed a randomForest model
+fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise + 
+              dining + museums + art + hiking + music + gaming + clubbing + 
+              reading + tv + theater + movies + concerts + shopping + yoga,
+          data = subset(men, iid %in% more.than.5), # Subsetting to only get the matchs > 5
+          importance=TRUE, 
+          ntree=5000
 )
 
 # Get the importance of the features
@@ -658,6 +691,35 @@ my.y <- as.factor(women[,c(match.col.index)])
 fit <- randomForest(x = my.x, y = my.y,
           importance=TRUE, 
           ntree=2000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  coord_flip()
+```
+
+#### How to get more than 5 matches?
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(999)
+
+# Get the iid of the person with more than 5 matches
+more.than.5 <- unique(women.grouped.iid[women.grouped.iid$sum.match > 5,]$iid)
+
+# Feed a randomForest model
+fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise + 
+              dining + museums + art + hiking + music + gaming + clubbing + 
+              reading + tv + theater + movies + concerts + shopping + yoga,
+          data = subset(women, iid %in% more.than.5), # Subsetting to only get the matchs > 5
+          importance=TRUE, 
+          ntree=5000
 )
 
 # Get the importance of the features
