@@ -4,7 +4,7 @@ Analyse with R of a dataset provided by Kaggle, which can be found at the follow
 
 # URL of project
 
-http://colinleverger.github.io/solar-system-webgl/
+https://colinleverger.github.io/speed-dating-experiment-r
 
 Here is the knitted R script that I used to do the data exploration.
 
