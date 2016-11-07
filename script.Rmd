@@ -15,7 +15,7 @@ output:
 I am going to explore a Speed Dating dataset provided by Kaggle, which can be found at the following URL: https://www.kaggle.com/annavictoria/speed-dating-experiment/.
 
 ```{r, include=FALSE}
-setwd("/Users/colinleverger/Documents/Experiments/kaggle/speed-dating-experiment")
+# setwd("/Users/colinleverger/Documents/Experiments/kaggle/speed-dating-experiment")
 ```
 
 The dataset is provided with its key, which is a Word document you will need to quickly go through to understand my work properly.
