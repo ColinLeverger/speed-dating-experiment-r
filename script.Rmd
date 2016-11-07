@@ -733,9 +733,29 @@ ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
   coord_flip()
 ```
 
-```{r}
+## Does race really matters?
 
+```{r}
+# Find samerace importance on imprace
+imprace.importance <- df %>%
+  group_by(samerace, imprace) %>%
+  summarise(
+    sum.match = sum(match),
+    total = n()
+  ) 
+# Eliminate imprace = 0 because the scale is from 1 to 10
+imprace.importance <- imprace.importance[imprace.importance$imprace > 0 & !is.na(imprace.importance$imprace),]
+
+# Plot samerace over imprace 
+ggplot(imprace.importance, aes(x = imprace, y = (sum.match / total) * 100, fill = factor(samerace))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Samerace") +
+  xlab("Imprace") + ylab("Count (%)") + ggtitle("Importance of `imprace`") +
+  scale_fill_manual(values = cbPalette)
 ```
+
+Surprisingly, the attribute `imprace` doesn't seem to have a big impact on the process. Indeed, it is not because `imprace = 10` and `samerace = 1` that there is significantly more matches... The distribution is nearly flat, we could just notice a few less matches for `imprace = 10` and `imprace = 8`.
+
 
 # Create data to feed Gephi
 ****
