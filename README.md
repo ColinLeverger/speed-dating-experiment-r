@@ -14,4 +14,4 @@ See:
 - `.travis.yml` for Travis configuration,
 - `deploy.sh` for `gh-pages` deployment.
 
-! [Build status] (https://travis-ci.org/ColinLeverger/speed-dating-experiment-r.svg?branch=master)
+[![Build status](https://travis-ci.org/ColinLeverger/speed-dating-experiment-r.svg?branch=master)](https://colinleverger.github.io/speed-dating-experiment-r)
