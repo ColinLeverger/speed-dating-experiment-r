@@ -1,6 +1,12 @@
 language: r
+install:
+  - R -e "install.packages('devtools')"
+  - R -e "devtools::install_github('rstudio/rmarkdown')"    
 sudo: false
 cache: packages
+script:
+  - R -e "rmarkdown::render('script.Rmd')"
+
 
 branches:
   only:
