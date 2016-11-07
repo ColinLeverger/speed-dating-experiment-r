@@ -1,4 +1,10 @@
 language: r
+sudo: false
+cache: packages
+branches:
+  only:
+    - master
+
 install:
   - R -e "install.packages('devtools')"
   - R -e "devtools::install_github('rstudio/rmarkdown')"    
@@ -9,12 +15,14 @@ install:
   - R -e "install.packages('readr')"        
   - R -e "install.packages('dataQualityR')"
   - R -e "install.packages('randomForest')" 
-sudo: false
-cache: packages
+
 script:
   - R -e "rmarkdown::render('script.Rmd')"
   - ls
 
-branches:
-  only:
-    - master
+env:
+  global:
+  - GH_REF: github.com/ColinLeverger/speed-dating-experiment-r.git
+
+after_success:
+  - bash ./deploy.sh
