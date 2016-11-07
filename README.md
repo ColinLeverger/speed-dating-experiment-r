@@ -11,7 +11,7 @@ Here is the knitted R script that I used to do the data exploration.
 # Built by Travis CI
 
 See:
-- `. travis.yml` for Travis configuration,
+- `.travis.yml` for Travis configuration,
 - `deploy.sh` for `gh-pages` deployment.
 
 ! [Build status] (https://travis-ci.org/ColinLeverger/speed-dating-experiment-r.svg?branch=master)
