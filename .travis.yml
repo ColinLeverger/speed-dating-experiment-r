@@ -17,6 +17,7 @@ install:
   - R -e "install.packages('randomForest')" 
 
 script:
+  - mkdir dqr/
   - R -e "rmarkdown::render('script.Rmd')"
   - ls
 
