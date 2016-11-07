@@ -2,11 +2,18 @@ language: r
 install:
   - R -e "install.packages('devtools')"
   - R -e "devtools::install_github('rstudio/rmarkdown')"    
+  - R -e "install.packages('dplyr')"        
+  - R -e "install.packages('reshape2')"    
+  - R -e "install.packages('ggplot2')"      
+  - R -e "install.packages('RColorBrewer')" 
+  - R -e "install.packages('readr')"        
+  - R -e "install.packages('dataQualityR')"
+  - R -e "install.packages('randomForest')" 
 sudo: false
 cache: packages
 script:
   - R -e "rmarkdown::render('script.Rmd')"
-
+  - ls
 
 branches:
   only:
