@@ -756,6 +756,123 @@ ggplot(imprace.importance, aes(x = imprace, y = (sum.match / total) * 100, fill 
 
 Surprisingly, the attribute `imprace` doesn't seem to have a big impact on the process. Indeed, it is not because `imprace = 10` and `samerace = 1` that there is significantly more matches... The distribution is nearly flat, we could just notice a few less matches for `imprace = 10` and `imprace = 8`.
 
+## Does age really matter?
+```{r}
+# Group df by age and age_0
+age.analysis <- df %>%
+  group_by(age, age_o) %>%
+  summarise(
+    n.people = n(), 
+    n.matches = sum(match)
+  ) %>%
+  filter(!is.na(age) & !is.na(age_o))
+
+# Filter with age difference > 5 years, and with more than 5 matches
+age.diff <- age.analysis %>%
+  filter(age - age_o >= 0) %>%
+  mutate(n.years = age - age_o) %>%
+  group_by(n.years) %>%
+  summarise(
+    n.matches = sum(n.matches)
+  ) %>%
+  arrange(n.years)
+
+# Graph result
+ggplot(age.diff[age.diff$n.years < 20,], aes(x = n.years, y = n.matches)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Number of years of difference between people's age") + 
+  ylab("Number of matches") + ggtitle("Does age really matter?") +
+  scale_fill_manual(values = cbPalette)
+```
+
+## Does correlation between participant’s and partner’s ratings of interests really matter?
+
+```{r}
+# Group df with int_corr and gender
+int_corr.analysis <- df %>%
+  group_by(int_corr) %>%
+  summarise(
+    my.n = n(),
+    n.matches = sum(match)
+  ) %>%
+  filter(!is.na(int_corr))
+
+int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 0 & 
+                                  int_corr.analysis$n.matches < 10] <- "few"  
+int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 10 & 
+                                  int_corr.analysis$n.matches < 20] <- "middle"  
+int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 20] <- "lot"  
+
+# Plot result
+ggplot(int_corr.analysis, aes(x = int_corr, y = my.n, fill = factor(n.matches.cat))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Matches") +
+  xlab("int_cor") + ylab("Count") + 
+  ggtitle("Does correlation between participant’s and partner’s ratings of interests really matter?") 
+```
+
+## Are people more willing to meet someone working in the same field?
+
+```{r}
+# TODO
+```
+
+
+## Is income important to get more matches?
+
+```{r}
+# Dummie analysis: group by match and see extremums, mean, median...
+df %>%
+  filter(!is.na(income)) %>%
+  group_by(match, gender) %>%
+  summarise(
+    mean = mean(income),
+    median = median(income),
+    max = max(income),
+    min = min(income),
+    n.matches = sum(match)
+  )
+```
+
+Nothing very interesting to see here - there is still a lot of missing values in `income`...
+
+## Is it important to be on the firsts dates to have match?
+
+```{r}
+df %>% 
+  filter(match == 1) %>%
+  group_by(order, gender) %>%
+  summarise(
+    n.matches = sum(match)
+  ) %>%
+  ggplot(aes(x = order, y = n.matches, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Order") + ylab("Number of matches") + 
+  ggtitle("Is it important to be on the firsts dates to have match?") 
+
+```
+
+## Is "proxy for intelligence" `mn_sat` important in this dataset?
+
+```{r}
+# How many missing values?
+dqr.cont[dqr.cont$X == 'mn_sat', c(1:4)]
+
+# 62 percents, that is a lot. Look what we can get by deleting all the missing values...
+df %>%
+  filter(!is.na(mn_sat)) %>%
+  group_by(mn_sat) %>%
+  summarise(
+    n.matches = sum(match)
+  ) %>%
+  ggplot(aes(x = mn_sat, y = n.matches)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("mn_sat") + ylab("Number of matches") + 
+  ggtitle("Is `mn_sat` important in this dataset?") 
+```
+
+Apparently, the more you were "intelligent", the more you had matches during the events... Meaningless due to a very hudge amount of missing values... Notice that it was not good neither to be "too inteligent".
 
 # Create data to feed Gephi
 ****
