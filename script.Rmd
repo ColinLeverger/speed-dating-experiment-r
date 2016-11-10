@@ -31,6 +31,7 @@ Let's first load a few libraries...
 library(dplyr)        # Data manipulation
 library(reshape2)     # Data reshaping for ggplot
 library(ggplot2)      # Data visualization
+library(plotly)       # Dynamic data visualization
 library(RColorBrewer) # Colors on plots
 library(readr)        # CSV file I/O, e.g. the read_csv function
 library(dataQualityR) # DQR generation
@@ -804,19 +805,52 @@ int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 10 &
 int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 20] <- "lot"  
 
 # Plot result
-ggplot(int_corr.analysis, aes(x = int_corr, y = my.n, fill = factor(n.matches.cat))) +
+p <- ggplot(int_corr.analysis, aes(x = int_corr, y = my.n, fill = factor(n.matches.cat))) +
   geom_bar(stat = "identity", position = "dodge") +
   scale_fill_discrete(name = "Matches") +
   xlab("int_cor") + ylab("Count") + 
-  ggtitle("Does correlation between participant’s and partner’s ratings of interests really matter?") 
+  ggtitle(paste("Does correlation between participant’s and partner’s \n", 
+                "ratings of interests really matter? \n", sep = "<br>"))
+
+# Dynamic visualisation
+ggplotly(p)
 ```
 
 ## Are people more willing to meet someone working in the same field?
 
 ```{r}
-# TODO
+# Temp variable to store `pid`
+temp <- df$pid
+
+# Blank list to store the partner coded career
+my.career_c_o <- list()
+# Loop to create the column we need in df
+# The goal is to add the coded career of the person met to each row
+for(i in 1:length(temp)){
+  my.career_c_o[i] <- head(df[df$iid == temp[i],]$career_c, 1)
+}
 ```
 
+```{r}
+# Copy df to avoid working on the real data
+df.copy <- df
+# Add the coded field of partner
+df.copy$career_c_o <- unlist(my.career_c_o)
+
+# Explore...
+var1 <- df.copy %>%
+  filter(match == 1) %>%
+  group_by(career_c, career_c_o) %>%
+  summarise(my.n = n()) %>% 
+  filter(!is.na(career_c) & !is.na(career_c_o))
+
+# Heatmap to display result
+ggplotly(ggplotly(ggplot(var1, aes(career_c, career_c_o)) + 
+  geom_tile(aes(fill = my.n), colour = "white") + 
+  scale_fill_gradient(low = "white", high = "steelblue") + 
+  ggtitle(paste("Are people more willing to meet \n", 
+                "someone working in the same field? \n", sep = "<br>"))))
+```
 
 ## Is income important to get more matches?
 
