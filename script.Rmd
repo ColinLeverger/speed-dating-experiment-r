@@ -805,15 +805,12 @@ int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 10 &
 int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 20] <- "lot"  
 
 # Plot result
-p <- ggplot(int_corr.analysis, aes(x = int_corr, y = my.n, fill = factor(n.matches.cat))) +
+ggplotly(ggplot(int_corr.analysis, aes(x = int_corr, y = my.n, fill = factor(n.matches.cat))) +
   geom_bar(stat = "identity", position = "dodge") +
   scale_fill_discrete(name = "Matches") +
   xlab("int_cor") + ylab("Count") + 
   ggtitle(paste("Does correlation between participant’s and partner’s \n", 
-                "ratings of interests really matter? \n", sep = "<br>"))
-
-# Dynamic visualisation
-ggplotly(p)
+                "ratings of interests really matter? \n", sep = "<br>")))
 ```
 
 ## Are people more willing to meet someone working in the same field?
@@ -845,11 +842,11 @@ var1 <- df.copy %>%
   filter(!is.na(career_c) & !is.na(career_c_o))
 
 # Heatmap to display result
-ggplotly(ggplotly(ggplot(var1, aes(career_c, career_c_o)) + 
+ggplotly(ggplot(var1, aes(career_c, career_c_o)) + 
   geom_tile(aes(fill = my.n), colour = "white") + 
   scale_fill_gradient(low = "white", high = "steelblue") + 
   ggtitle(paste("Are people more willing to meet \n", 
-                "someone working in the same field? \n", sep = "<br>"))))
+                "someone working in the same field? \n", sep = "<br>")))
 ```
 
 ## Is income important to get more matches?
@@ -894,7 +891,7 @@ df %>%
 dqr.cont[dqr.cont$X == 'mn_sat', c(1:4)]
 
 # 62 percents, that is a lot. Look what we can get by deleting all the missing values...
-df %>%
+ggplotly(df %>%
   filter(!is.na(mn_sat)) %>%
   group_by(mn_sat) %>%
   summarise(
@@ -903,7 +900,7 @@ df %>%
   ggplot(aes(x = mn_sat, y = n.matches)) +
   geom_bar(stat = "identity", position = "dodge") +
   xlab("mn_sat") + ylab("Number of matches") + 
-  ggtitle("Is `mn_sat` important in this dataset?") 
+  ggtitle("Is `mn_sat` important in this dataset?"))
 ```
 
 Apparently, the more you were "intelligent", the more you had matches during the events... Meaningless due to a very hudge amount of missing values... Notice that it was not good neither to be "too inteligent".
