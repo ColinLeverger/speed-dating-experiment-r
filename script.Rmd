@@ -201,7 +201,7 @@ However, we see above that the data seems to already be standardised - no work f
 
 ## Change Male and Female attributes
 
-To enhance comprehension, I have chosen to display `W` instead if `0` for women, and `M` instead of `1` for males. This little modification will not have any negative impact on analysis, because we will not do any machine learning.
+To enhance comprehension, I have chosen to display `W` instead if `0` for women, and `M` instead of `1` for men. This little modification will not have any negative impact on analysis, because we will not do any machine learning.
 
 ```{r}
 df[df$gender == 0,]$gender <- "W"
@@ -212,6 +212,13 @@ df[df$gender == 1,]$gender <- "M"
 ****
 ## Gender analysis
 ```{r, warning=FALSE, message=FALSE}
+# How many women/men in the experiments
+df %>% 
+  group_by(iid) %>% 
+  summarise(gender = head(gender,1)) %>% 
+  group_by(gender) %>% 
+  summarise(my.n = n())
+
 gender.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
   group_by(wave, gender) %>%
   summarise(my.n = n()) %>%
@@ -462,6 +469,21 @@ ggplot(match.by.waves, aes(x = wave, y = nb_matches)) +
   geom_bar(stat = "identity", position = "dodge") + ggtitle("Matches by waves") +
   xlab("Wave number") + ylab("Matches")
 ```
+
+### Match vs dec
+
+```{r}
+df %>%
+  group_by(match, dec) %>%
+  summarise(
+    my.n = n()
+  ) %>%
+  ggplot(aes(x = dec, y = my.n, fill = factor(match))) +
+  geom_bar(stat = "identity", position = "dodge") + ggtitle("Match vs dec") +
+  xlab("Decision") + ylab("Count")
+```
+
+It is interesting to notice that some people wanted to meet again their partner even if there was not a match between them - more than 2000 case in this dataset.
 
 ## Look for best attributes to have
 ### For men
@@ -912,10 +934,11 @@ In this dataset, there are connections between people. It fits well for a graph 
 
 ```{r}
 # Isolate iid (1) -> pid (12)
-gephi <- df[,c(1, 12)]
+gephi <- df[,c(1, 12, 13)]
 # Rename columns to match Gephi's prerequisites
 names(gephi)[1] <- paste("Source")
 names(gephi)[2] <- paste("Target")
+names(gephi)[3] <- paste("Match")
 # Convert Target into integer (to avoid having 10.0, 11.0...)
 # We don't want to have ".0" to have a good analysis with Gephi
 gephi$Target <- as.integer(gephi$Target)
