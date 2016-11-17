@@ -554,7 +554,7 @@ dum <- men.matches %>%
 
 ggplot(dum[,c(2,3)], aes(x = reorder(variable, -value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
-  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  xlab("Feature") + ylab("Count") + ggtitle("Dummie importance of a feature") +
   coord_flip()
 ```
 
@@ -583,7 +583,7 @@ colnames(importance.features) <- c("rowname", "value")
 # Plot the importance of the features for a man
 ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
-  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: Simple Random Forest classifier") +
   coord_flip()
 ```
 
@@ -610,7 +610,7 @@ colnames(importance.features) <- c("rowname", "value")
 # Plot the importance of the features for a man
 ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
-  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: Extra-tree Random Forest classifier") +
   coord_flip()
 ```
 
@@ -639,7 +639,7 @@ colnames(importance.features) <- c("rowname", "value")
 # Plot the importance of the features for a man
 ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
-  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: how to get more than 5 matches?") +
   coord_flip()
 ```
 
@@ -696,7 +696,7 @@ colnames(importance.features) <- c("rowname", "value")
 # Plot the importance of the features for a man
 ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
-  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: Simple Random Forest classifier") +
   coord_flip()
 ```
 
@@ -752,7 +752,7 @@ colnames(importance.features) <- c("rowname", "value")
 # Plot the importance of the features for a man
 ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
-  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: how to get more than 5 matches?") +
   coord_flip()
 ```
 
