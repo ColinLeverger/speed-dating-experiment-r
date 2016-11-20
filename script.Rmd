@@ -208,6 +208,11 @@ df[df$gender == 0,]$gender <- "W"
 df[df$gender == 1,]$gender <- "M"
 ```
 
+## Write on disk the cleaned dataset
+```{r}
+write.csv(df, "df-clean.csv")
+```
+
 # Analyse the data
 ****
 ## Gender analysis
@@ -944,4 +949,51 @@ names(gephi)[3] <- paste("Match")
 gephi$Target <- as.integer(gephi$Target)
 # Write on disk
 write_csv(gephi, "gephi.csv")
+```
+
+
+# Create data to feed Neo4J
+****
+
+```{r}
+# Extract people
+neo.people <- df %>%
+  group_by(iid) %>%
+  summarise(
+    gender = unique(gender),
+    age = unique(age),
+    field_cd = unique(field_cd),
+    race = unique(race),
+    imprace = unique(imprace),
+    zipcode = unique(zipcode),
+    income = unique(income),
+    goal = unique(goal),
+    date = unique(date),
+    go_out = unique(go_out),
+    career_c = unique(career_c),
+    sports = unique(sports),
+    tvsports= unique(tvsports), 
+    exercise = unique(exercise),
+    dining = unique(dining),
+    museums = unique(museums),
+    art = unique(art),
+    hiking = unique(hiking),
+    gaming = unique(gaming),
+    clubbing = unique(clubbing),
+    reading = unique(reading),
+    tv = unique(tv),
+    theater = unique(theater),
+    movies = unique(movies),
+    concerts = unique(concerts),
+    music = unique(music),
+    shopping = unique(shopping),
+    yoga = unique(yoga)
+  )
+
+# Extract date events
+neo.dates = df[,c(1,12,6,7,8,10,13,14,15,98)]
+
+# Write results on disk to load them on neo4j
+write_csv(neo.people, "neo-people.csv")
+write_csv(neo.dates, "neo-dates.csv")
 ```
