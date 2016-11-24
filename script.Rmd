@@ -1,0 +1,1000 @@
+---
+title: 'Exploring Speed Dating'
+author: 'Colin LEVERGER'
+date: '22 Oct 2016'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: yeti
+    highlight: tango
+---
+# Introduction
+
+I am going to explore a Speed Dating dataset provided by Kaggle, which can be found at the following URL: https://www.kaggle.com/annavictoria/speed-dating-experiment/.
+
+```{r, include=FALSE}
+# setwd("/Users/colinleverger/Documents/Experiments/kaggle/speed-dating-experiment")
+```
+
+The dataset is provided with its key, which is a Word document you will need to quickly go through to understand my work properly.
+
+# Initialisations
+****
+## Packages
+
+Let's first load a few libraries...
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# Load libraries & packages
+library(dplyr)        # Data manipulation
+library(reshape2)     # Data reshaping for ggplot
+library(ggplot2)      # Data visualization
+library(plotly)       # Dynamic data visualization
+library(RColorBrewer) # Colors on plots
+library(readr)        # CSV file I/O, e.g. the read_csv function
+library(dataQualityR) # DQR generation
+library(randomForest) # Random Forest for variable importance
+```
+
+## Color palettes for plots
+
+This is optional, but if we decide to change the color of the `ggplot` afterwards, it could be useful.
+
+```{r}
+cbPalette  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+
+## Read the data
+```{r, results="hide", warning=FALSE, message=FALSE}
+missing.types <- c("NA", "")
+df <- read.csv("input/Speed Dating Data.csv", na.strings = missing.types, stringsAsFactors = F)
+# "income", "tuition" and "mn_sat" features should be read as numerical
+df$income  <- as.numeric(gsub(",", "", df$income))
+df$tuition <- as.numeric(gsub(",", "", df$tuition))
+df$mn_sat  <- as.numeric(gsub(",", "", df$mn_sat))
+```
+
+# Clean the data
+****
+In this part of the analysis, we will clean the dataset and work on variables to have a better exploration of the dataset. This procedure includes various checks, imputations, type changes...
+
+## Generate the Data Quality Report, before the feature engineering
+
+The Data Quality Report (DQR) is a good way to have an overall view of the quality of the dataset. Which feature has the most missing values? How many unique values are present for this or this feature? Etc. It is a very good help to understand and clean the data.
+
+```{r}
+checkDataQuality(
+  df,
+  out.file.num = "dqr/DQR_cont.csv",
+  out.file.cat = "dqr/DQR_cat.csv"
+)
+
+# Read the DQR on the disk
+dqr.cont <- read.csv("dqr/DQR_cont.csv")
+dqr.cat  <- read.csv("dqr/DQR_cat.csv")
+
+# Classify features in function of their missingness for better analysis
+feat.cont.missing20_100 <- dqr.cont[dqr.cont$missing.percent > 20,]
+feat.cont.missing20     <- dqr.cont[dqr.cont$missing.percent <= 20 & dqr.cont$missing.percent > 0,]
+# View(feat.cont.missing20)
+```
+
+## Imputations with missing values
+
+If we take a closer look at the data, we notice that there are a lot of features which have exactly 79 missing values.
+
+```{r}
+head(dqr.cont[dqr.cont$missing == 79, c(1,2,3)], 10)
+```
+
+The question is: is there a pattern? Can we impute, can we clean up this mess?
+
+```{r}
+val1 <- feat.cont.missing20[feat.cont.missing20$missing == 79,]$X
+sample_n(df[is.na(df$imprelig), c(1:10)], 10)
+```
+
+It appears that nothing very interesting can be deducted from this. Indeed, most of the missing values are preferences of the people considered. Impossible to impute that!
+
+In the same approach, there is a lot of missing values for `age_o` and `race_o` features.
+
+```{r}
+missing.age_o.pid <- unique(df[is.na(df$age_o),]$pid)
+missing.race_o.pid <- unique(df[is.na(df$race_o),]$pid)
+sample_n(subset(df, iid %in% missing.age_o.pid)[, c(1:10)], 10)
+```
+
+Nothing very interesting here neither.
+
+## Deal with missing id
+
+According to our DQR, there is one missing `id` in our dataset. It should be fairly easy to deduct the good value. Let's find and replace it.
+
+```{r}
+# Find the iid of the only missing id
+iid <- df[is.na(df$id),]$iid
+# Assign this iid' id to the missing iid..
+df[is.na(df$id),]$id <- head(df[df$iid == iid,]$id, 1)
+```
+
+_Note to myself: it is not useful to make the process generic, the data will not change anyway..._
+ 
+## Deal with missing pid
+
+There is 10 missing `pid` (partner’s iid number) in the dataset. Since there is no `iid` missing, we could probably impute quite easily. 
+
+Every person has an unique id in the entire dataset: `iid`. A person has also an unique identifier within the wave: `id`. Each person meet another person, and we have both the `iid` and the `id` of this person met (respectively mapped to `pid` and `partner`). Therefore, if there is 10 `pid` missing and no `partner` missing, the `partner` value will lead us within the wave to this missing `pid`.
+
+```{r}
+# Show the missing pid
+df[is.na(df$pid), c(1,2,11,12)]
+# Save the partner number for the wave
+partner.pid <- unique(df[is.na(df$pid),]$partner)
+# Save the wave number
+wave.pid <- unique(df[is.na(df$pid),]$wave)
+# Show the iid we are looking for
+unique(df[df$wave == wave.pid & df$id == partner.pid,]$iid)
+df[is.na(df$pid),]$pid <- 128
+```
+
+## Work on field feature
+```{r}
+# Plot raw field
+df$field <- tolower(df$field)
+barplot(
+  table(df$field),
+  main = "Careers"
+)
+
+# How many unique field do we have?
+paste("There is", length(unique(df$field)), "different uncoded fields.")
+```
+
+We cannot use this column to analyse the data. Indeed, all the values in this column were directly given by the users, and the latter may write anything, including nonsense values such as "I don’t know".
+
+Instead, we will rely on the `field_coded` variable, which should have 18 levels.
+
+```{r}
+# Show coded field
+ordered(unique(df$field_cd))
+```
+
+## Work on career feature
+```{r}
+# Plot raw career
+df$career <- tolower(df$career)
+barplot(
+  table(df$career),
+  main = "Careers"
+)
+# How many unique carrer do we have?
+paste("There is", length(unique(df$career)), "different uncoded carreers.")
+
+# Show coded career (should have 17 levels)
+ordered(unique(df$career_c))
+```
+
+## Work on zip codes
+
+We see that there is a lot of `zipcode`s equals to 0, and these should be changed to NAs.
+
+```{r}
+# Assign NA to all the zip codes equals to 0
+df[df$zipcode == 0 & !is.na(df$zipcode),]$zipcode <- NA
+```
+
+## Standardise waves
+
+It is said on the word doc linked to the data that the waves 6 to 9 are different because people were asked to note their preferences from 1 to 10 rather than allocating a hundred points on features.
+
+```{r}
+# Show waves 6 to 9
+head(df[df$wave > 5 & df$wave < 10, c(1,16:20)])
+# Show wave 3 to compare
+head(df[df$wave == 3, c(1,16:20)])
+```
+
+However, we see above that the data seems to already be standardised - no work for us here!
+
+## Change Male and Female attributes
+
+To enhance comprehension, I have chosen to display `W` instead if `0` for women, and `M` instead of `1` for men. This little modification will not have any negative impact on analysis, because we will not do any machine learning.
+
+```{r}
+df[df$gender == 0,]$gender <- "W"
+df[df$gender == 1,]$gender <- "M"
+```
+
+## Write on disk the cleaned dataset
+```{r}
+write.csv(df, "df-clean.csv")
+```
+
+# Analyse the data
+****
+## Gender analysis
+```{r, warning=FALSE, message=FALSE}
+# How many women/men in the experiments
+df %>% 
+  group_by(iid) %>% 
+  summarise(gender = head(gender,1)) %>% 
+  group_by(gender) %>% 
+  summarise(my.n = n())
+
+gender.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
+  group_by(wave, gender) %>%
+  summarise(my.n = n()) %>%
+  melt(id.vars = c("gender", "wave"))
+
+# Plot gender repartition in waves
+ggplot(gender.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Wave") + ylab("Population") + ggtitle("Gender repartition in waves") +
+  scale_fill_manual(values = cbPalette)
+```
+
+## Age analysis
+```{r, warning=FALSE, message=FALSE}
+age.rep.over.waves <- subset(df, !duplicated(df[, 1])) %>%
+  filter(!is.na(age)) %>%
+  group_by(wave, gender) %>%
+  summarise(my.m = mean(age)) %>%
+  melt(id.vars = c("gender", "wave"))
+
+# Plot age repartition in waves
+ggplot(age.rep.over.waves, aes(x = wave, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Wave") + ylab("Mean age") + ggtitle("Age repartition in waves") +
+  scale_fill_manual(values = cbPalette)
+
+# What are the extremums?
+print(paste0("Minimum age in all the dataset is: ", min(df[!is.na(df$age),]$age)))
+print(paste0("Max age in all the dataset is: ", max(df[!is.na(df$age),]$age)))
+print(paste0("Mean age in all the dataset is: ", mean(df[!is.na(df$age),]$age)))
+```
+
+## Work and studies analysis
+```{r}
+# Create study field codes
+fields.cd <- c(
+  "Law",
+  "Math",
+  "Social Science, Psychologist" ,
+  "Medical Science, Pharmaceuticals, and Bio Tech",
+  "Engineering",
+  "English/Creative Writing/ Journalism",
+  "History/Religion/Philosophy",
+  "Business/Econ/Finance",
+  "Education, Academia",
+  "Biological Sciences/Chemistry/Physics",
+  "Social Work" ,
+  "Undergrad/undecided" ,
+  "Political Science/International Affairs" ,
+  "Film",
+  "Fine Arts/Arts Administration",
+  "Languages",
+  "Architecture",
+  "Other"
+)
+
+# Create career codes
+career.cd <- c(
+  "Lawyer",
+  "Academic/Research", 
+  "Psychologist", 
+  "Doctor/Medicine",
+  "Engineer", 
+  "Creative Arts/Entertainment",
+  "BankingBusiness/CEO/Admin",
+  "Real Estate",
+  "International/Humanitarian Affairs",
+  "Undecided" ,
+  "Social Work",
+  "Speech Pathology",
+  "Politics",
+  "Pro sports/Athletics",
+  "Other",
+  "Journalism",
+  "Architecture"
+)
+
+# Find number of men/women on each study field
+fields <- df[!is.na(df$field_cd),] %>%
+  group_by(gender, field_cd) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Find number of men/women on each career
+careers <- df[!is.na(df$career_c),] %>%
+  group_by(gender, career_c) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot study fields repartition
+ggplot(fields, aes(x = field_cd, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Field") + ylab("Count") + ggtitle("Study fields repartition") +
+  scale_x_continuous(labels = fields.cd, breaks = 1:18) +
+  coord_flip()
+
+# Plot careers repartition
+ggplot(careers, aes(x = career_c, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Career") + ylab("Count") + ggtitle("Careers repartition") +
+  scale_x_continuous(labels = career.cd, breaks = 1:17) +
+  coord_flip()
+```
+
+## Race analysis
+```{r}
+# Create race code
+race.c <- c(
+  "Black/African American",
+  "European/Caucasian-American",
+  "Latino/Hispanic American",
+  "Asian/Pacific Islander/Asian-American",
+  "Native American",
+  "Other"
+)
+
+# Find number of men/women for each race
+races <- df[!is.na(df$race),] %>%
+  group_by(gender, race) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot race repartition
+ggplot(races, aes(x = race, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Race") + ylab("Count") + ggtitle("Race repartition") +
+  scale_x_continuous(labels = race.c, breaks = 1:6) +
+  coord_flip()
+```
+
+## Goal analysis
+```{r}
+# Create goal code
+goal.c <- c(
+  "Seemed like a fun night out",
+  "To meet new people",
+  "To get a date",
+  "Looking for a serious relationship",
+  "To say I did it",
+  "Other"
+)
+
+# Find number of men/women for each goal
+goals <- df[!is.na(df$goal),] %>%
+  group_by(gender, goal) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot goals repartition
+ggplot(goals, aes(x = goal, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Goal") + ylab("Count") + ggtitle("Goal repartition") +
+  scale_x_continuous(labels = goal.c, breaks = 1:6) +
+  coord_flip()
+```
+
+## Date & go out analysis
+```{r}
+# Create date & go out code
+date.c <- c(
+  "Several times a week",
+  "Twice a week",
+  "Once a week",
+  "Twice a month",
+  "Once a month",
+  "Several times a year",
+  "Almost never"
+)
+
+# Find date occurrence for men/women
+dates <- df[!is.na(df$date),] %>%
+  group_by(gender, date) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Find go out occurrence for men/women
+go.outs <- df[!is.na(df$go_out),] %>%
+  group_by(gender, go_out) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot dates repartition
+ggplot(dates, aes(x = date, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Date") + ylab("Count") + ggtitle("Date repartition") +
+  scale_x_continuous(labels = date.c, breaks = 1:7) +
+  coord_flip()
+
+# Plot go out repartition
+ggplot(go.outs, aes(x = go_out, y = my.n, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Go out") + ylab("Count") + ggtitle("Go out repartition") +
+  scale_x_continuous(labels = date.c, breaks = 1:7) +
+  coord_flip()
+```
+
+## Matches analysis
+```{r}
+# Dummie analysis on Matches
+barplot(
+  table(df$match),
+  main = "Matches proportion",
+  col = "black"
+)
+```
+
+### Match by gender analysis
+```{r}
+match.by.gender <- df %>%
+  group_by(gender) %>%
+  summarise(
+    nb_matches = sum(match == 1),
+    nb_fails = sum(match == 0)
+  ) %>% 
+  melt(id.vars = "gender")
+
+# Plot matches for both men and women
+ggplot(match.by.gender, aes(x = variable, y = value, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") + ggtitle("Matches by gender") +
+  xlab("Result") + ylab("Count")
+```
+
+### Match by wave analysis
+```{r}
+match.by.waves <- df[df$match == 1,] %>%
+  group_by(wave) %>%
+  summarise(
+    nb_matches = sum(match == 1)
+  )
+
+# Plot matches for waves: what was the best wave to be?
+ggplot(match.by.waves, aes(x = wave, y = nb_matches)) +
+  geom_bar(stat = "identity", position = "dodge") + ggtitle("Matches by waves") +
+  xlab("Wave number") + ylab("Matches")
+```
+
+### Match vs dec
+
+```{r}
+df %>%
+  group_by(match, dec) %>%
+  summarise(
+    my.n = n()
+  ) %>%
+  ggplot(aes(x = dec, y = my.n, fill = factor(match))) +
+  geom_bar(stat = "identity", position = "dodge") + ggtitle("Match vs dec") +
+  xlab("Decision") + ylab("Count")
+```
+
+It is interesting to notice that some people wanted to meet again their partner even if there was not a match between them - more than 2000 case in this dataset.
+
+## Look for best attributes to have
+### For men
+#### Preminilary analysis
+```{r}
+# Isolate the men from the dataset
+men <- df[df$gender == "M",]
+
+# Get first and last index of the columns of the features we are interested in
+first.col.index <- head(grep("sports", colnames(df)), 1)
+last.col.index  <- head(grep("yoga", colnames(df)), 1)
+
+# Get index of the `match` column
+match.col.index <- head(grep("match", colnames(df)), 1)
+
+# Create vector without NAs to use forest
+men <- men[complete.cases(men[first.col.index:last.col.index]),]
+
+# Group men by iid
+men.grouped.iid <- men %>%
+  group_by(iid) %>%
+  summarise(
+    sum.match = sum(match)
+  ) 
+
+# Find the number of men per number of matches
+n.match.men <- men.grouped.iid %>%
+  group_by(sum.match) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot number of match per man
+ggplot(n.match.men, aes(x = sum.match, y = my.n)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
+  xlab("Number of matches") + ylab("Count") + ggtitle("Number of men per number of matches")
+```
+
+#### Dummie feature importance analysis
+
+```{r}
+# Isolate men with matches
+men.matches <-  men[df$match == 1,] 
+
+# Dummie analysis: summarise the number of occurence of each features
+dum <- men.matches %>%
+  group_by(gender) %>%
+  summarise(
+    s.sports = sum(sports, na.rm=T),
+    s.tvsports = sum(tvsports, na.rm=T),
+    s.exercise = sum(exercise, na.rm=T),
+    s.dining = sum(dining, na.rm=T),
+    s.museums = sum(museums, na.rm=T),
+    s.art = sum(art, na.rm=T),
+    s.hiking = sum(hiking, na.rm=T),
+    s.gaming = sum(gaming, na.rm=T),
+    s.clubbing = sum(clubbing, na.rm=T),
+    s.reading = sum(reading, na.rm=T),
+    s.tv = sum(tv, na.rm=T),
+    s.music = sum(music, na.rm=T),
+    s.theater = sum(theater, na.rm=T),
+    s.movies = sum(movies, na.rm=T),
+    s.concerts = sum(concerts, na.rm=T),
+    s.shopping = sum(shopping, na.rm=T),
+    s.yoga = sum(yoga, na.rm=T)
+  ) %>%
+  melt(id.vars = "gender")
+
+ggplot(dum[,c(2,3)], aes(x = reorder(variable, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Dummie importance of a feature") +
+  coord_flip()
+```
+
+#### Simple Random Forest classifier
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(50)
+# Feed a randomForest model
+fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise + 
+              dining + museums + art + hiking + music + gaming + clubbing + 
+              reading + tv + theater + movies + concerts + shopping + yoga,
+          data = men,
+          importance=TRUE, 
+          ntree=2000
+)
+
+# Get the importance of the features
+# We need to perform several operations on the fit$importance field, including:
+#  - take only the column we are interested in,
+#  - create a new column with the rowname on it,
+#  - rename the columns.
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: Simple Random Forest classifier") +
+  coord_flip()
+```
+
+#### Extra-tree Random Forest classifier
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(42)
+
+# Create the "x" value, cf ?extraTrees
+my.x <- men[,c(first.col.index:last.col.index)]
+my.y <- as.factor(men[,c(match.col.index)])
+  
+# Feed a randomForest model
+fit <- randomForest(x = my.x, y = my.y,
+          importance=TRUE, 
+          ntree=2000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: Extra-tree Random Forest classifier") +
+  coord_flip()
+```
+
+#### How to get more than 5 matches?
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(999)
+
+# Get the iid of the person with more than 5 matches
+more.than.5 <- unique(men.grouped.iid[men.grouped.iid$sum.match > 5,]$iid)
+
+# Feed a randomForest model
+fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise + 
+              dining + museums + art + hiking + music + gaming + clubbing + 
+              reading + tv + theater + movies + concerts + shopping + yoga,
+          data = subset(men, iid %in% more.than.5), # Subsetting to only get the matchs > 5
+          importance=TRUE, 
+          ntree=5000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#E69F00", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: how to get more than 5 matches?") +
+  coord_flip()
+```
+
+### For women
+#### Preminilary analysis
+```{r}
+# Isolate the women from the dataset
+women <- df[df$gender == "W",]
+
+# Create vector without NAs to use forest
+women <- women[complete.cases(women[first.col.index:last.col.index]),]
+
+# Group women by iid
+women.grouped.iid <- women %>%
+  group_by(iid) %>%
+  summarise(
+    sum.match = sum(match)
+  ) 
+
+# Find the number of women per number of matches
+n.match.women <- women.grouped.iid %>%
+  group_by(sum.match) %>%
+  summarise(
+    my.n = n()
+  )
+
+# Plot number of match per man
+ggplot(n.match.women, aes(x = sum.match, y = my.n)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
+  xlab("Number of matches") + ylab("Count") + ggtitle("Number of women per number of matches")
+
+# Isolate women with matches
+women.matches <-  df[df$gender == "W" & df$match == 1,] 
+```
+
+#### Simple Random Forest classifier
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(50)
+# Feed a randomForest model
+fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise + 
+              dining + museums + art + music + hiking + gaming + clubbing + 
+              reading + tv + theater + movies + concerts + shopping + yoga,
+          data = women,
+          importance=TRUE, 
+          ntree=2000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: Simple Random Forest classifier") +
+  coord_flip()
+```
+
+#### Extra-tree Random Forest classifier
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(42)
+
+# Create the "x" value, cf ?extraTrees
+my.x <- women[,c(first.col.index:last.col.index)]
+my.y <- as.factor(women[,c(match.col.index)])
+  
+# Feed a randomForest model
+fit <- randomForest(x = my.x, y = my.y,
+          importance=TRUE, 
+          ntree=2000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature") +
+  coord_flip()
+```
+
+#### How to get more than 5 matches?
+
+```{r}
+# Set the random seed to make this result reproducible
+set.seed(999)
+
+# Get the iid of the person with more than 5 matches
+more.than.5 <- unique(women.grouped.iid[women.grouped.iid$sum.match > 5,]$iid)
+
+# Feed a randomForest model
+fit <- randomForest(as.factor(match) ~ sports + tvsports + exercise + 
+              dining + museums + art + hiking + music + gaming + clubbing + 
+              reading + tv + theater + movies + concerts + shopping + yoga,
+          data = subset(women, iid %in% more.than.5), # Subsetting to only get the matchs > 5
+          importance=TRUE, 
+          ntree=5000
+)
+
+# Get the importance of the features
+importance.features <- tibble::rownames_to_column(data.frame(fit$importance[,c(1)]))
+colnames(importance.features) <- c("rowname", "value")
+
+# Plot the importance of the features for a man
+ggplot(importance.features, aes(x = reorder(rowname, -value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", fill="#56B4E9", colour="black") +
+  xlab("Feature") + ylab("Count") + ggtitle("Importance of a feature: how to get more than 5 matches?") +
+  coord_flip()
+```
+
+## Does race really matters?
+
+```{r}
+# Find samerace importance on imprace
+imprace.importance <- df %>%
+  group_by(samerace, imprace) %>%
+  summarise(
+    sum.match = sum(match),
+    total = n()
+  ) 
+# Eliminate imprace = 0 because the scale is from 1 to 10
+imprace.importance <- imprace.importance[imprace.importance$imprace > 0 & !is.na(imprace.importance$imprace),]
+
+# Plot samerace over imprace 
+ggplot(imprace.importance, aes(x = imprace, y = (sum.match / total) * 100, fill = factor(samerace))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Samerace") +
+  xlab("Imprace") + ylab("Count (%)") + ggtitle("Importance of `imprace`") +
+  scale_fill_manual(values = cbPalette)
+```
+
+Surprisingly, the attribute `imprace` doesn't seem to have a big impact on the process. Indeed, it is not because `imprace = 10` and `samerace = 1` that there is significantly more matches... The distribution is nearly flat, we could just notice a few less matches for `imprace = 10` and `imprace = 8`.
+
+## Does age really matter?
+```{r}
+# Group df by age and age_0
+age.analysis <- df %>%
+  group_by(age, age_o) %>%
+  summarise(
+    n.people = n(), 
+    n.matches = sum(match)
+  ) %>%
+  filter(!is.na(age) & !is.na(age_o))
+
+# Filter with age difference > 5 years, and with more than 5 matches
+age.diff <- age.analysis %>%
+  filter(age - age_o >= 0) %>%
+  mutate(n.years = age - age_o) %>%
+  group_by(n.years) %>%
+  summarise(
+    n.matches = sum(n.matches)
+  ) %>%
+  arrange(n.years)
+
+# Graph result
+ggplot(age.diff[age.diff$n.years < 20,], aes(x = n.years, y = n.matches)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Number of years of difference between people's age") + 
+  ylab("Number of matches") + ggtitle("Does age really matter?") +
+  scale_fill_manual(values = cbPalette)
+```
+
+## Does correlation between participant’s and partner’s ratings of interests really matter?
+
+```{r}
+# Group df with int_corr and gender
+int_corr.analysis <- df %>%
+  group_by(int_corr) %>%
+  summarise(
+    my.n = n(),
+    n.matches = sum(match)
+  ) %>%
+  filter(!is.na(int_corr))
+
+int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 0 & 
+                                  int_corr.analysis$n.matches < 10] <- "few"  
+int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 10 & 
+                                  int_corr.analysis$n.matches < 20] <- "middle"  
+int_corr.analysis$n.matches.cat[int_corr.analysis$n.matches >= 20] <- "lot"  
+
+# Plot result
+ggplotly(ggplot(int_corr.analysis, aes(x = int_corr, y = my.n, fill = factor(n.matches.cat))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Matches") +
+  xlab("int_cor") + ylab("Count") + 
+  ggtitle(paste("Does correlation between participant’s and partner’s \n", 
+                "ratings of interests really matter? \n", sep = "<br>")))
+```
+
+## Are people more willing to meet someone working in the same field?
+
+```{r}
+# Temp variable to store `pid`
+temp <- df$pid
+
+# Blank list to store the partner coded career
+my.career_c_o <- list()
+# Loop to create the column we need in df
+# The goal is to add the coded career of the person met to each row
+for(i in 1:length(temp)){
+  my.career_c_o[i] <- head(df[df$iid == temp[i],]$career_c, 1)
+}
+```
+
+```{r}
+# Copy df to avoid working on the real data
+df.copy <- df
+# Add the coded field of partner
+df.copy$career_c_o <- unlist(my.career_c_o)
+
+# Explore...
+var1 <- df.copy %>%
+  filter(match == 1) %>%
+  group_by(career_c, career_c_o) %>%
+  summarise(my.n = n()) %>% 
+  filter(!is.na(career_c) & !is.na(career_c_o))
+
+# Heatmap to display result
+ggplotly(ggplot(var1, aes(career_c, career_c_o)) + 
+  geom_tile(aes(fill = my.n), colour = "white") + 
+  scale_fill_gradient(low = "white", high = "steelblue") + 
+  ggtitle(paste("Are people more willing to meet \n", 
+                "someone working in the same field? \n", sep = "<br>")))
+```
+
+## Is income important to get more matches?
+
+```{r}
+# Dummie analysis: group by match and see extremums, mean, median...
+df %>%
+  filter(!is.na(income)) %>%
+  group_by(match, gender) %>%
+  summarise(
+    mean = mean(income),
+    median = median(income),
+    max = max(income),
+    min = min(income),
+    n.matches = sum(match)
+  )
+```
+
+Nothing very interesting to see here - there is still a lot of missing values in `income`...
+
+## Is it important to be on the firsts dates to have match?
+
+```{r}
+df %>% 
+  filter(match == 1) %>%
+  group_by(order, gender) %>%
+  summarise(
+    n.matches = sum(match)
+  ) %>%
+  ggplot(aes(x = order, y = n.matches, fill = factor(gender))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_discrete(name = "Gender") +
+  xlab("Order") + ylab("Number of matches") + 
+  ggtitle("Is it important to be on the firsts dates to have match?") 
+
+```
+
+## Is "proxy for intelligence" `mn_sat` important in this dataset?
+
+```{r}
+# How many missing values?
+dqr.cont[dqr.cont$X == 'mn_sat', c(1:4)]
+
+# 62 percents, that is a lot. Look what we can get by deleting all the missing values...
+ggplotly(df %>%
+  filter(!is.na(mn_sat)) %>%
+  group_by(mn_sat) %>%
+  summarise(
+    n.matches = sum(match)
+  ) %>%
+  ggplot(aes(x = mn_sat, y = n.matches)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("mn_sat") + ylab("Number of matches") + 
+  ggtitle("Is `mn_sat` important in this dataset?"))
+```
+
+Apparently, the more you were "intelligent", the more you had matches during the events... Meaningless due to a very hudge amount of missing values... Notice that it was not good neither to be "too inteligent".
+
+# Create data to feed Gephi
+****
+
+In this dataset, there are connections between people. It fits well for a graph analysis, and we will thus use Gephi to do so.
+
+```{r}
+# Isolate iid (1) -> pid (12)
+gephi <- df[,c(1, 12, 13)]
+# Rename columns to match Gephi's prerequisites
+names(gephi)[1] <- paste("Source")
+names(gephi)[2] <- paste("Target")
+names(gephi)[3] <- paste("Match")
+# Convert Target into integer (to avoid having 10.0, 11.0...)
+# We don't want to have ".0" to have a good analysis with Gephi
+gephi$Target <- as.integer(gephi$Target)
+# Write on disk
+write_csv(gephi, "gephi.csv")
+```
+
+
+# Create data to feed Neo4J
+****
+
+```{r}
+# Extract people
+neo.people <- df %>%
+  group_by(iid) %>%
+  summarise(
+    gender = unique(gender),
+    age = unique(age),
+    field_cd = unique(field_cd),
+    race = unique(race),
+    imprace = unique(imprace),
+    zipcode = unique(zipcode),
+    income = unique(income),
+    goal = unique(goal),
+    date = unique(date),
+    go_out = unique(go_out),
+    career_c = unique(career_c),
+    sports = unique(sports),
+    tvsports= unique(tvsports), 
+    exercise = unique(exercise),
+    dining = unique(dining),
+    museums = unique(museums),
+    art = unique(art),
+    hiking = unique(hiking),
+    gaming = unique(gaming),
+    clubbing = unique(clubbing),
+    reading = unique(reading),
+    tv = unique(tv),
+    theater = unique(theater),
+    movies = unique(movies),
+    concerts = unique(concerts),
+    music = unique(music),
+    shopping = unique(shopping),
+    yoga = unique(yoga)
+  )
+
+# Extract date events
+neo.dates = df[,c(1,12,6,7,8,10,13,14,15,98)]
+neo.dates$pid =as.integer(neo.dates$pid)
+
+# Write results on disk to load them on neo4j
+write_csv(neo.people, "neo-people.csv")
+write_csv(neo.dates, "neo-dates.csv")
+```

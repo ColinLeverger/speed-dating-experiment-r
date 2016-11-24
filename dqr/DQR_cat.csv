@@ -1,0 +1,6 @@
+"","n.non.miss","n.miss","n.miss.percent","n.unique","cat_1","freq_1","cat_2","freq_2","cat_3","freq_3","cat_4","freq_4","cat_5","freq_5","cat_6","freq_6","cat_7","freq_7","cat_8","freq_8","cat_9","freq_9","cat_10","freq_10"
+"field",8315,63,0.75,260,"Business",521,"MBA",468,"Law",462,"Social Work",378,"International Affairs",252,"Electrical Engineering",164,"Psychology",139,"law",123,"Finance",113,"business",110
+"undergra",4914,3464,41.35,242,"UC Berkeley",107,"Harvard",104,"Columbia",95,"Yale",86,"NYU",78,"Brown",66,"UCLA",66,"Cornell University",64,"Smith College",59,"Tufts University",47
+"from",8299,79,0.94,270,"New York",522,"New Jersey",365,"California",301,"China",139,"Italy",132,"New York City",130,"Boston",123,"Texas",120,"NYC",109,"India",107
+"zipcode",7314,1064,12.7,410,"0",355,"10,021",139,"10,027",128,"10,025",121,"19,087",48,"7,410",41,"92,064",41,"10,012",39,"11,235",39,"10,128",37
+"career",8289,89,1.06,368,"Finance",202,"professor",199,"Lawyer",154,"Professor",148,"Consulting",147,"Social Worker",136,"Law",121,"Business",103,"Academic",101,"Scientist",91
