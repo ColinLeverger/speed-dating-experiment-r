@@ -2,6 +2,8 @@
 
 Analyse with R of a dataset provided by Kaggle, which can be found at the following address: https://www.kaggle.com/annavictoria/speed-dating-experiment/
 
+Report available [here](./BIBA-Colin-LEVERGER.pdf).
+
 # URL of project
 
 https://colinleverger.github.io/speed-dating-experiment-r

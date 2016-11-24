@@ -124,7 +124,7 @@ MATCH (p:Person)-[:LIVES]->(c:City)
 WITH count(p) as degree, c
 WHERE NOT c.zipcode = 'NA'
 RETURN c
-LIMIT 10
+ORDER BY degree DESC LIMIT 10
 
 
 
